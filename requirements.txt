@@ -1,0 +1,7 @@
+pandas
+folium
+Pillow
+pillow-heif
+piexif
+flet
+flet-map
