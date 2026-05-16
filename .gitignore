@@ -10,6 +10,11 @@ build/
 dist/
 *.spec
 
+# Local working dirs (not for the repo)
+original/
+resources/
+testfiles/
+
 # Logs and run output
 log/
 *.log

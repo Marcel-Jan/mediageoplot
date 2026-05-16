@@ -8,6 +8,8 @@ from PIL.ExifTags import TAGS
 import pillow_heif
 import piexif
 
+from .exiftool_runner import run_exiftool_json
+
 
 class HEICFile:
     """Class for .heic files."""
@@ -269,3 +271,66 @@ class JpegFile:
             return photo_latitude, photo_longitude, photo_altitude
         except Exception:
             return None
+
+
+class VideoFile:
+    """Class for video files (.mp4, .mts) — uses exiftool to extract embedded GPS.
+
+    Handles AVCHD .MTS (Sony actioncam, camcorders) where GPS is in the MPEG-TS
+    stream, GoPro .MP4 (GPMF telemetry track), and Apple/DJI .MP4 (©xyz atom).
+    Returns None if no valid GPS sample is found or exiftool is unavailable.
+    """
+
+    def __init__(self, mediafile_location_disk, logger):
+        self.mediafile_location_disk = mediafile_location_disk
+        logger.debug("VideoFile mediafile_location_disk: %s", mediafile_location_disk)
+        metadata = self._run_exiftool(mediafile_location_disk, logger)
+        self.mediafile_creationdate = self._pick_creationdate(metadata)
+        self.mediafile_geolocation = self._pick_geolocation(metadata)
+
+    @staticmethod
+    def _run_exiftool(path, logger):
+        # -ee  walks embedded streams (required for AVCHD/GoPro telemetry)
+        # -n   emits numeric values (decimal degrees, signed via Composite)
+        # -j   JSON output
+        # -G1  qualifies tags by group (so we can tell GPS: from Track4:)
+        # -api largefilesupport=1   needed for big video files
+        result = run_exiftool_json([
+            "-ee", "-n", "-j", "-G1", "-api", "largefilesupport=1",
+            "-Composite:GPSLatitude", "-Composite:GPSLongitude",
+            "-Composite:GPSAltitude", "-GPS:GPSAltitude", "-Track4:GPSAltitude",
+            "-GPS:GPSStatus",
+            "-Composite:GPSDateTime", "-QuickTime:CreateDate", "-CreateDate",
+            str(path),
+        ])
+        if not result:
+            logger.debug("exiftool returned nothing for %s", path)
+            return None
+        return result[0] if isinstance(result, list) and result else None
+
+    @staticmethod
+    def _pick_geolocation(metadata):
+        if not metadata:
+            return None
+        lat = metadata.get("Composite:GPSLatitude")
+        lon = metadata.get("Composite:GPSLongitude")
+        if lat is None or lon is None:
+            return None
+        # AVCHD records GPSStatus="V" for void/no-fix samples; skip those.
+        if metadata.get("GPS:GPSStatus") == "V":
+            return None
+        alt = (metadata.get("Composite:GPSAltitude")
+               or metadata.get("GPS:GPSAltitude")
+               or metadata.get("Track4:GPSAltitude") or 0.0)
+        try:
+            return float(lat), float(lon), float(alt)
+        except (TypeError, ValueError):
+            return None
+
+    @staticmethod
+    def _pick_creationdate(metadata):
+        if not metadata:
+            return None
+        return (metadata.get("Composite:GPSDateTime")
+                or metadata.get("QuickTime:CreateDate")
+                or metadata.get("CreateDate"))

@@ -12,7 +12,7 @@ import logging
 
 import pandas as pd
 
-from .media_types import HEICFile, MP4XMLFile, JpegFile
+from .media_types import HEICFile, MP4XMLFile, JpegFile, VideoFile
 
 
 MEDIA_FILE_EXTENSIONS = ["jpg", "jpeg", "heic", "mp4", "xml", "mts"]
@@ -33,13 +33,14 @@ ProgressCallback = Callable[[int, int, str], None]
 """Signature: (current_index, total_count, current_filename) -> None"""
 
 
-def _collect_media_files(media_paths: Iterable[Path]) -> list[Path]:
-    """Find all files matching MEDIA_FILE_EXTENSIONS under the given paths (recursive)."""
+def _collect_media_files(media_paths: Iterable[Path], recursive: bool = True) -> list[Path]:
+    """Find all files matching MEDIA_FILE_EXTENSIONS under the given paths."""
+    prefix = "**/" if recursive else ""
     media_files: list[Path] = []
     for media_path in media_paths:
         for ext in MEDIA_FILE_EXTENSIONS:
-            media_files.extend(media_path.glob(f"**/*.{ext}"))
-            media_files.extend(media_path.glob(f"**/*.{ext.upper()}"))
+            media_files.extend(media_path.glob(f"{prefix}*.{ext}"))
+            media_files.extend(media_path.glob(f"{prefix}*.{ext.upper()}"))
     return [f for f in media_files if f.is_file()]
 
 
@@ -53,10 +54,11 @@ def _build_file_object(media_file: Path, logger: logging.Logger):
             return HEICFile(media_file, logger)
         if ext in ("jpg", "jpeg"):
             return JpegFile(media_file, logger)
+        if ext in ("mp4", "mts"):
+            return VideoFile(media_file, logger)
     except Exception as exc:
         logger.warning("Failed to process %s: %s", media_file, exc)
         return None
-    # mp4 and mts: no class yet — geolocation comes via the XML sidecar
     return None
 
 
@@ -64,13 +66,16 @@ def scan_directories(
     media_paths: list[Path],
     logger: Optional[logging.Logger] = None,
     progress_callback: Optional[ProgressCallback] = None,
+    recursive: bool = True,
 ) -> ScanResult:
     """Scan one or more directories for media files with GPS metadata.
 
     Args:
-        media_paths: Directories to scan recursively.
+        media_paths: Directories to scan.
         logger: Optional logger; a no-op logger is used if not provided.
         progress_callback: Optional callable invoked after each file is processed.
+        recursive: If True (default), descend into subdirectories; if False,
+            only scan files directly in the given directories.
 
     Returns:
         ScanResult with counts and a dataframe of geolocations.
@@ -80,7 +85,7 @@ def scan_directories(
         logger.addHandler(logging.NullHandler())
 
     result = ScanResult()
-    media_files = _collect_media_files(media_paths)
+    media_files = _collect_media_files(media_paths, recursive=recursive)
     total = len(media_files)
     logger.debug("Found %d candidate media files", total)
 

@@ -138,6 +138,10 @@ async def main(page: ft.Page) -> None:
         disabled=True,
         height=48,
     )
+    recursive_checkbox = ft.Checkbox(
+        label=t("include_subfolders"),
+        value=True,
+    )
 
     status_text = ft.Text("", size=13, color=ft.Colors.GREY_700)
 
@@ -193,6 +197,7 @@ async def main(page: ft.Page) -> None:
         open_map_btn.content = ft.Text(t("open_map_in_browser"))
         pick_btn.content = ft.Text(t("add_folder"))
         scan_btn.content = ft.Text(t("scan"))
+        recursive_checkbox.label = t("include_subfolders")
         language_dropdown.label = t("language_label")
         for opt in language_dropdown.options:
             opt.text = t(f"language_{opt.key}")
@@ -234,6 +239,7 @@ async def main(page: ft.Page) -> None:
                 selected_folders,
                 logger=logger,
                 progress_callback=on_progress,
+                recursive=bool(recursive_checkbox.value),
             )
 
             map_path: Optional[str] = None
@@ -314,7 +320,8 @@ async def main(page: ft.Page) -> None:
         header_row,
         ft.Divider(height=24),
         folders_card,
-        ft.Row([pick_btn, scan_btn], spacing=12),
+        ft.Row([pick_btn, scan_btn, recursive_checkbox], spacing=12,
+               vertical_alignment=ft.CrossAxisAlignment.CENTER),
         ft.Divider(height=24),
         progress_bar,
         progress_label,

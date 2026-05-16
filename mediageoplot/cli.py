@@ -38,6 +38,8 @@ def main() -> None:
                         help="Path(s) of media files, comma-separated. Default: current dir.")
     parser.add_argument("--output", "-o", type=str, default="media_gpsplot.html",
                         help="HTML output file. Default: media_gpsplot.html")
+    parser.add_argument("--no-recursive", action="store_true",
+                        help="Only scan files at the top level of each directory.")
     args = parser.parse_args()
 
     media_paths = [Path(p).resolve() for p in args.media_path.split(",")]
@@ -50,7 +52,7 @@ def main() -> None:
     print(f"Media paths: {media_paths}")
     logger.debug("Media paths: %s", media_paths)
 
-    result = scan_directories(media_paths, logger=logger)
+    result = scan_directories(media_paths, logger=logger, recursive=not args.no_recursive)
     print(f"Scanned {result.files_scanned} files — {result.files_with_gps} had GPS data.")
     logger.info("Scanned %d files — %d had GPS data.",
                 result.files_scanned, result.files_with_gps)
