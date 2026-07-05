@@ -68,6 +68,15 @@ jobs:
           flet pack run_gui.py --name MediaMap --yes \
             --add-data "resources/exiftool${SEP}resources/exiftool"
 
+      - name: Codesign macOS .app with entitlements
+        if: runner.os == 'macOS'
+        run: |
+          codesign --force --deep --sign - \
+            --entitlements entitlements.plist \
+            --options runtime \
+            dist/MediaMap.app
+          codesign -dv --entitlements - dist/MediaMap.app
+
       - name: Zip macOS .app bundle
         if: runner.os == 'macOS'
         run: |

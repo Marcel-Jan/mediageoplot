@@ -8,7 +8,6 @@ venv/
 # Build artifacts
 build/
 dist/
-*.spec
 
 # Local working dirs (not for the repo)
 original/
