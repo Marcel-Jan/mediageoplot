@@ -38,7 +38,10 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $url = "https://exiftool.org/exiftool-13.58_64.zip"
+          # exiftool.org only hosts the latest version; fetch the current version number
+          # and download from SourceForge (where all versions live).
+          $version = (Invoke-WebRequest -Uri "https://exiftool.org/ver.txt" -UseBasicParsing).Content.Trim()
+          $url = "https://sourceforge.net/projects/exiftool/files/exiftool-${version}_64.zip/download"
           Invoke-WebRequest -Uri $url -OutFile exiftool.zip
           Expand-Archive exiftool.zip -DestinationPath exiftool-extract
           New-Item -ItemType Directory -Force -Path resources/exiftool | Out-Null
@@ -52,12 +55,16 @@ jobs:
       - name: Download exiftool (macOS)
         if: runner.os == 'macOS'
         run: |
-          curl -L -o exiftool.tar.gz https://exiftool.org/Image-ExifTool-13.58.tar.gz
+          # exiftool.org only hosts the latest version; fetch the current version number
+          # and download from SourceForge (where all versions live).
+          VERSION=$(curl -sfL https://exiftool.org/ver.txt | tr -d '[:space:]')
+          echo "Using exiftool version: $VERSION"
+          curl -L -o exiftool.tar.gz "https://sourceforge.net/projects/exiftool/files/Image-ExifTool-${VERSION}.tar.gz/download"
           mkdir -p resources/exiftool
           tar xzf exiftool.tar.gz
           # The tarball contains a single Image-ExifTool-<ver>/ dir; copy whole tree
           # so the `lib/` Perl modules sit alongside the exiftool script.
-          cp -R Image-ExifTool-13.58/exiftool Image-ExifTool-13.58/lib resources/exiftool/
+          cp -R "Image-ExifTool-${VERSION}/exiftool" "Image-ExifTool-${VERSION}/lib" resources/exiftool/
           chmod +x resources/exiftool/exiftool
 
       - name: Build app (flet pack)
