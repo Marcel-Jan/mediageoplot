@@ -34,32 +34,6 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
 
-      - name: Download exiftool (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $url = "https://sourceforge.net/projects/exiftool/files/exiftool-13.59_64.zip/download"
-          Invoke-WebRequest -Uri $url -OutFile exiftool.zip
-          Expand-Archive exiftool.zip -DestinationPath exiftool-extract
-          New-Item -ItemType Directory -Force -Path resources/exiftool | Out-Null
-          # The zip ships "exiftool(-k).exe"; rename to exiftool.exe.
-          $exe = Get-ChildItem exiftool-extract -Recurse -Filter "exiftool*.exe" | Select-Object -First 1
-          Copy-Item $exe.FullName resources/exiftool/exiftool.exe
-          # Bring along the exiftool_files/ Perl runtime directory it depends on.
-          $deps = Get-ChildItem exiftool-extract -Recurse -Filter "exiftool_files" -Directory | Select-Object -First 1
-          if ($deps) { Copy-Item $deps.FullName resources/exiftool/exiftool_files -Recurse }
-
-      - name: Download exiftool (macOS)
-        if: runner.os == 'macOS'
-        run: |
-          curl -L -o exiftool.tar.gz "https://sourceforge.net/projects/exiftool/files/Image-ExifTool-13.59.tar.gz/download"
-          mkdir -p resources/exiftool
-          tar xzf exiftool.tar.gz
-          # The tarball contains a single Image-ExifTool-<ver>/ dir; copy whole tree
-          # so the `lib/` Perl modules sit alongside the exiftool script.
-          cp -R Image-ExifTool-13.59/exiftool Image-ExifTool-13.59/lib resources/exiftool/
-          chmod +x resources/exiftool/exiftool
-
       - name: Build app (flet pack)
         shell: bash
         run: |
